@@ -143,6 +143,15 @@ python -m admission_browser_agent.cli --mode mvp --query "HKU AI" --export-forma
 This mode resolves short queries such as `HKU AI`, `HKUST BDT`, and `CUHK AI` to curated official targets, runs the official-seed pipeline, and writes flat structured exports under `data/exports/mvp/`.
 MVP exports include at least: `program_name`, `department`, `duration`, `tuition`, `deadline`, `language_requirement`, `background_requirement`, and whether statistics/programming/mathematics foundation is mentioned.
 
+Compare mode (offline cross-program summary from latest MVP exports):
+
+```powershell
+$env:PYTHONPATH="src"
+python -m admission_browser_agent.cli --mode compare
+```
+
+This scans `data/exports/mvp/`, keeps the latest JSON export per `program_code`, and writes a markdown comparison report under `data/exports/reports/` with a field table plus derived signals (earliest parsed deadline, foundation mentions).
+
 The legacy `--mode homepage` spelling is still accepted as a backward-compatible alias for `--mode generic`.
 
 ## Benchmarking

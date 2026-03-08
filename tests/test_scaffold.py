@@ -22,6 +22,7 @@ def test_placeholder_modules_import() -> None:
         "admission_browser_agent",
         "admission_browser_agent.browser",
         "admission_browser_agent.cli",
+        "admission_browser_agent.compare",
         "admission_browser_agent.config",
         "admission_browser_agent.evaluation",
         "admission_browser_agent.exports",
@@ -201,6 +202,8 @@ def test_cli_parser_includes_required_arguments() -> None:
     assert "--query" in help_text
     assert "--export-formats" in help_text
     assert "mvp" in help_text
+    assert "compare" in help_text
+    assert "--compare-export-dir" in help_text
 
 
 def test_browser_session_fetches_page_with_fake_playwright(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -4533,3 +4536,105 @@ def test_cli_runs_mvp_mode_and_prints_export_paths(
     assert f"export_json_path: {export_paths['json']}" in captured.out
     assert f"export_csv_path: {export_paths['csv']}" in captured.out
     assert f"export_markdown_path: {export_paths['markdown']}" in captured.out
+
+
+def test_compare_mode_builds_markdown_report_from_latest_exports(tmp_path: Path) -> None:
+    from admission_browser_agent.compare import build_comparison_markdown, load_latest_mvp_exports
+
+    export_dir = tmp_path / "exports" / "mvp"
+    export_dir.mkdir(parents=True)
+    (export_dir / "20260308T010101Z-hku-old.json").write_text(
+        json.dumps(
+            {
+                "program_code": "HKU_MSC_AI",
+                "program_name": "Master of Science in Artificial Intelligence",
+                "university": "HKU",
+                "deadline": "December 1, 2025",
+                "tuition": "HK$390,000",
+                "mentions_statistics_foundation": "False",
+                "mentions_programming_foundation": "True",
+                "mentions_math_foundation": "True",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (export_dir / "20260308T020202Z-hku-new.json").write_text(
+        json.dumps(
+            {
+                "program_code": "HKU_MSC_AI",
+                "program_name": "Master of Science in Artificial Intelligence",
+                "university": "HKU",
+                "deadline": "December 1, 2025",
+                "tuition": "HK$390,000",
+                "mentions_statistics_foundation": "True",
+                "mentions_programming_foundation": "True",
+                "mentions_math_foundation": "True",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (export_dir / "20260308T030303Z-hkust.json").write_text(
+        json.dumps(
+            {
+                "program_code": "HKUST_MSC_BDT",
+                "program_name": "MSc in Big Data Technology",
+                "university": "HKUST",
+                "deadline": "1 December 2025",
+                "tuition": "HK$330,000",
+                "mentions_statistics_foundation": "False",
+                "mentions_programming_foundation": "True",
+                "mentions_math_foundation": "True",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    rows = load_latest_mvp_exports(export_dir)
+    report = build_comparison_markdown(rows)
+
+    assert len(rows) == 2
+    row_by_code = {row.program_code: row for row in rows}
+    assert row_by_code["HKU_MSC_AI"].mentions_statistics_foundation is True
+    assert "| program_code | program_name | deadline | tuition |" in report
+    assert "Earliest parsed deadline: 2025-12-01" in report
+
+
+def test_cli_compare_mode_prints_report_path(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    from admission_browser_agent.cli import main
+
+    export_dir = tmp_path / "exports" / "mvp"
+    export_dir.mkdir(parents=True)
+    (export_dir / "20260308T010101Z-hku.json").write_text(
+        json.dumps(
+            {
+                "program_code": "HKU_MSC_AI",
+                "program_name": "Master of Science in Artificial Intelligence",
+                "university": "HKU",
+                "deadline": "December 1, 2025",
+                "tuition": "HK$390,000",
+                "mentions_statistics_foundation": "True",
+                "mentions_programming_foundation": "True",
+                "mentions_math_foundation": "True",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    exit_code = main(
+        [
+            "--mode",
+            "compare",
+            "--compare-export-dir",
+            str(export_dir),
+            "--compare-output-dir",
+            str(tmp_path / "reports"),
+        ]
+    )
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "run_mode: compare" in captured.out
+    assert "compare_report_path:" in captured.out

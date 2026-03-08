@@ -6,6 +6,11 @@ import argparse
 from pathlib import Path
 from typing import Sequence
 
+from .compare import (
+    build_comparison_markdown,
+    load_latest_mvp_exports,
+    write_comparison_report,
+)
 from .config import BrowserConfig, RunConfig
 from .evaluation import (
     build_gold_label_draft,
@@ -34,12 +39,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--mode",
-        choices=("generic", "homepage", "official-seed", "mvp"),
+        choices=("generic", "homepage", "official-seed", "mvp", "compare"),
         default="generic",
         help=(
             "Execution mode. 'generic' explores from a user-provided seed URL. "
             "'official-seed' uses curated program pages. 'mvp' resolves a short program query "
-            "to curated official pages and exports structured results. "
+            "to curated official pages and exports structured results. 'compare' builds an "
+            "offline report from latest MVP JSON exports. "
             "'homepage' is a backward-compatible alias for 'generic'."
         ),
     )
@@ -102,6 +108,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional directory for MVP structured export artifacts.",
     )
     parser.add_argument(
+        "--compare-export-dir",
+        help="Optional directory to scan for MVP JSON exports in compare mode.",
+    )
+    parser.add_argument(
+        "--compare-output-dir",
+        help="Optional directory for compare-mode markdown reports.",
+    )
+    parser.add_argument(
         "--headful",
         action="store_true",
         help="Launch the browser with a visible window instead of headless mode.",
@@ -120,6 +134,39 @@ def main(argv: Sequence[str] | None = None) -> int:
     gold_dir = Path(args.gold_dir) if args.gold_dir else None
     gold_draft_dir = Path(args.gold_draft_dir) if args.gold_draft_dir else default_gold_draft_dir()
     export_dir = Path(args.export_dir) if args.export_dir else None
+    compare_export_dir = Path(args.compare_export_dir) if args.compare_export_dir else None
+    compare_output_dir = Path(args.compare_output_dir) if args.compare_output_dir else None
+
+    if args.mode == "compare":
+        if args.benchmark:
+            parser.exit(2, "Error: --benchmark is not supported in compare mode.\n")
+        if args.propose_gold_draft:
+            parser.exit(2, "Error: --propose-gold-draft is not supported in compare mode.\n")
+
+        export_base_dir = (
+            compare_export_dir
+            if compare_export_dir is not None
+            else _resolve_output_dir(run_config.export_data_dir) / "mvp"
+        )
+        output_base_dir = (
+            compare_output_dir
+            if compare_output_dir is not None
+            else _resolve_output_dir(run_config.export_data_dir) / "reports"
+        )
+        try:
+            rows = load_latest_mvp_exports(export_base_dir)
+            report_markdown = build_comparison_markdown(rows)
+            report_path = write_comparison_report(
+                report_markdown=report_markdown,
+                output_dir=output_base_dir,
+            )
+        except Exception as exc:
+            parser.exit(1, f"Error: {exc}\n")
+
+        print("run_mode: compare")
+        print(f"compare_input_dir: {export_base_dir}")
+        print(f"compare_report_path: {report_path}")
+        return 0
 
     if args.mode == "mvp":
         if args.benchmark:
