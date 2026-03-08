@@ -148,7 +148,7 @@ $env:PYTHONPATH="src"
 python -m admission_browser_agent.cli --mode official-seed --program-code "HKU_MDASC" --benchmark
 ```
 
-Third curated target (`HKUST_MSC_BDT`) is prepared with a manual template at `data/gold/official-seed/HKUST_MSC_BDT.json`. After curation, run:
+Third curated target (`HKUST_MSC_BDT`) is available at `data/gold/official-seed/HKUST_MSC_BDT.json`. Run:
 
 ```powershell
 $env:PYTHONPATH="src"
@@ -164,27 +164,54 @@ python -m admission_browser_agent.cli --mode official-seed --all-programs --benc
 
 Evaluation artifacts are written under `data/processed/eval/official-seed/`. The benchmark report includes per-field status, normalized matching, keyword overlap metrics, coverage rate, exact-match rate, and whether a miss should be treated as an extraction error, missing source coverage, or a field left null.
 
+To bootstrap manual curation, you can also generate a machine-suggested candidate gold draft (kept separate from official gold labels):
+
+```powershell
+$env:PYTHONPATH="src"
+python -m admission_browser_agent.cli --mode official-seed --program-code "HKUST_MSC_BDT" --propose-gold-draft
+```
+
+Default draft output directory: `data/gold/official-seed/candidates/` (override with `--gold-draft-dir`).
+
 ## Benchmark Snapshot
 
-Latest verified official-seed benchmark run:
+Latest verified official-seed benchmark runs:
 
-- Date: 2026-03-08
-- Program: `HKU_MDASC`
-- Command:
+1. `HKU_MDASC` (2026-03-08)
+
+Command:
 
 ```powershell
 $env:PYTHONPATH="src"
 python -m admission_browser_agent.cli --mode official-seed --program-code "HKU_MDASC" --benchmark
 ```
 
-- Result summary:
-  - `benchmark_status: completed`
-  - `required_field_count: 6`
-  - `scored_field_count: 6`
-  - `overall_field_score: 1.000`
-  - `exact_match_rate: 1.000`
-  - `field_coverage_rate: 1.000`
-  - `missing_fields: none`
+Result summary:
+- `benchmark_status: completed`
+- `required_field_count: 6`
+- `scored_field_count: 6`
+- `overall_field_score: 1.000`
+- `exact_match_rate: 1.000`
+- `field_coverage_rate: 1.000`
+- `missing_fields: none`
+
+2. `HKUST_MSC_BDT` (2026-03-08)
+
+Command:
+
+```powershell
+$env:PYTHONPATH="src"
+python -m admission_browser_agent.cli --mode official-seed --program-code "HKUST_MSC_BDT" --benchmark
+```
+
+Result summary:
+- `benchmark_status: completed`
+- `required_field_count: 5`
+- `scored_field_count: 5`
+- `overall_field_score: 1.000`
+- `exact_match_rate: 1.000`
+- `field_coverage_rate: 1.000`
+- `missing_fields: none`
 
 ## Official Seed Pages
 

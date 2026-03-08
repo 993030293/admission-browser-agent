@@ -12,6 +12,7 @@ This directory stores manually maintained benchmark labels for curated official-
 
 - Official-seed gold labels live under `data/gold/official-seed/`.
 - Each benchmark file should be named `<PROGRAM_CODE>.json`.
+- Machine-generated candidate drafts can be written under `data/gold/official-seed/candidates/` for manual review.
 
 ## Recommended Workflow
 

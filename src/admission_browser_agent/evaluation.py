@@ -123,6 +123,12 @@ def default_gold_dir() -> Path:
     return Path(__file__).resolve().parents[2] / "data" / "gold" / "official-seed"
 
 
+def default_gold_draft_dir() -> Path:
+    """Return the repository-local directory for machine-generated gold drafts."""
+
+    return default_gold_dir() / "candidates"
+
+
 def load_gold_label(
     *,
     program_code: str,
@@ -229,6 +235,61 @@ def evaluate_official_seed_result(
         field_results=field_results,
         summary=summary,
     )
+
+
+def build_gold_label_draft(
+    *,
+    target: OfficialTargetDefinition,
+    extracted_result: ExtractedProgramInfo,
+) -> GoldLabelRecord:
+    """Build a machine-generated candidate gold label for manual review."""
+
+    coverage_expectations = _default_coverage_expectations(target)
+    fields: dict[str, str | list[str] | None] = {
+        "program_name": extracted_result.program_name,
+        "deadline": extracted_result.deadline,
+        "tuition": extracted_result.tuition,
+        "english_requirement": extracted_result.english_requirement,
+        "academic_requirement": extracted_result.academic_requirement,
+        "prerequisite_keywords": list(extracted_result.prerequisite_keywords),
+    }
+    return GoldLabelRecord(
+        program_code=target.program_code,
+        university=target.university,
+        mode="official_seed",
+        label_status="manual_template_pending",
+        fields=fields,
+        coverage_expectations=coverage_expectations,
+        notes=(
+            "Machine-generated draft from current extraction output. "
+            "Manually verify and edit all fields before using as benchmark gold truth."
+        ),
+    )
+
+
+def write_gold_label_draft(
+    draft: GoldLabelRecord,
+    *,
+    output_dir: Path,
+) -> Path:
+    """Write a machine-generated candidate gold label JSON artifact."""
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / f"{draft.program_code}.json"
+    payload = {
+        "program_code": draft.program_code,
+        "university": draft.university,
+        "mode": draft.mode,
+        "label_status": draft.label_status,
+        "notes": draft.notes,
+        "coverage_expectations": draft.coverage_expectations,
+        "fields": draft.fields,
+    }
+    output_path.write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    return output_path
 
 
 def compare_scalar_field(

@@ -23,3 +23,6 @@ data/raw/**/*.json
 data/processed/*.json
 data/processed/**/*.json
 data/processed/debug/*.json
+
+# Machine-generated gold draft output
+data/gold/official-seed/candidates/*.json

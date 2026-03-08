@@ -193,6 +193,8 @@ def test_cli_parser_includes_required_arguments() -> None:
     assert "--seed-url" in help_text
     assert "--benchmark" in help_text
     assert "--gold-dir" in help_text
+    assert "--propose-gold-draft" in help_text
+    assert "--gold-draft-dir" in help_text
     assert "--program-code" in help_text
     assert "--all-programs" in help_text
 
@@ -3424,6 +3426,114 @@ def test_cli_runs_official_seed_program_and_prints_summary(
     assert "seed_pages_inspected: 2" in captured.out
 
 
+def test_cli_writes_gold_draft_for_official_seed_program(
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from admission_browser_agent.cli import main
+    from admission_browser_agent.evaluation import GoldLabelRecord
+    from admission_browser_agent.models import (
+        DebugRunReport,
+        ExtractedProgramInfo,
+        OfficialSeedPage,
+        OfficialSeedRegistry,
+        OfficialTargetDefinition,
+    )
+
+    registry = OfficialSeedRegistry(
+        targets=[
+            OfficialTargetDefinition(
+                university="Example University",
+                program_code="EXAMPLE_MSCS",
+                program_name="Master of Science in Computer Science",
+                tier="target",
+                seed_pages=[
+                    OfficialSeedPage(
+                        page_type="programme",
+                        url="https://example.edu/programme",
+                        priority=1,
+                        intended_fields=["program_name"],
+                    )
+                ],
+            )
+        ]
+    )
+
+    class StubPipeline:
+        def __init__(self, *, run_config, browser_session=None, extractor=None) -> None:
+            self.last_output_path = tmp_path / "official-seed" / "raw-capture.json"
+            self.last_processed_output_path = tmp_path / "official-seed" / "processed-capture.json"
+            self.last_debug_output_path = tmp_path / "official-seed" / "debug-capture.json"
+            self.last_debug_report = DebugRunReport(
+                seed_url="https://example.edu/programme",
+                seed_page_title="Programme",
+                run_mode="official_seed",
+                program_code="EXAMPLE_MSCS",
+                program_name="Master of Science in Computer Science",
+                inspected_pages=[types.SimpleNamespace()],
+            )
+
+        def run_official_seed_target(self, target) -> ExtractedProgramInfo:
+            assert target.program_code == "EXAMPLE_MSCS"
+            return ExtractedProgramInfo(
+                source_url="https://example.edu/programme",
+                page_title="Programme",
+                program_name="Master of Science in Computer Science",
+            )
+
+    draft_output_path = tmp_path / "gold-candidates" / "EXAMPLE_MSCS.json"
+    draft_record = GoldLabelRecord(
+        program_code="EXAMPLE_MSCS",
+        university="Example University",
+        mode="official_seed",
+        label_status="manual_template_pending",
+        fields={
+            "program_name": "Master of Science in Computer Science",
+            "deadline": None,
+            "tuition": None,
+            "english_requirement": None,
+            "academic_requirement": None,
+            "prerequisite_keywords": [],
+        },
+        coverage_expectations={
+            "program_name": True,
+            "deadline": False,
+            "tuition": False,
+            "english_requirement": False,
+            "academic_requirement": False,
+            "prerequisite_keywords": False,
+        },
+    )
+
+    monkeypatch.setattr("admission_browser_agent.cli.load_official_seed_registry", lambda path=None: registry)
+    monkeypatch.setattr("admission_browser_agent.cli.AdmissionsPipeline", StubPipeline)
+    monkeypatch.setattr(
+        "admission_browser_agent.cli.build_gold_label_draft",
+        lambda target, extracted_result: draft_record,
+    )
+    monkeypatch.setattr(
+        "admission_browser_agent.cli.write_gold_label_draft",
+        lambda draft, output_dir: draft_output_path,
+    )
+
+    exit_code = main(
+        [
+            "--mode",
+            "official-seed",
+            "--program-code",
+            "EXAMPLE_MSCS",
+            "--propose-gold-draft",
+            "--gold-draft-dir",
+            str(tmp_path / "gold-candidates"),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert f"gold_draft_output_path: {draft_output_path}" in captured.out
+
+
 def test_gold_label_loader_reads_curated_example() -> None:
     from admission_browser_agent.evaluation import load_gold_label
 
@@ -3479,21 +3589,67 @@ def test_gold_label_loader_reads_hkust_msc_bdt_template() -> None:
 
     assert gold_label.program_code == "HKUST_MSC_BDT"
     assert gold_label.university == "HKUST"
-    assert gold_label.label_status == "manual_template_pending"
-    assert gold_label.fields["program_name"] is None
-    assert gold_label.fields["deadline"] is None
-    assert gold_label.fields["tuition"] is None
-    assert gold_label.fields["english_requirement"] is None
-    assert gold_label.fields["academic_requirement"] is None
-    assert gold_label.fields["prerequisite_keywords"] == []
-    assert gold_label.coverage_expectations == {
-        "program_name": True,
-        "deadline": False,
-        "tuition": True,
-        "english_requirement": True,
-        "academic_requirement": True,
-        "prerequisite_keywords": False,
+    assert gold_label.mode == "official_seed"
+    assert isinstance(gold_label.label_status, str)
+    assert set(gold_label.fields.keys()) == {
+        "program_name",
+        "deadline",
+        "tuition",
+        "english_requirement",
+        "academic_requirement",
+        "prerequisite_keywords",
     }
+    assert isinstance(gold_label.fields["prerequisite_keywords"], list)
+    assert set(gold_label.coverage_expectations.keys()) == {
+        "program_name",
+        "deadline",
+        "tuition",
+        "english_requirement",
+        "academic_requirement",
+        "prerequisite_keywords",
+    }
+
+
+def test_build_and_write_gold_label_draft_from_extraction(tmp_path: Path) -> None:
+    from admission_browser_agent.evaluation import build_gold_label_draft, write_gold_label_draft
+    from admission_browser_agent.models import ExtractedProgramInfo
+
+    target = _make_benchmark_target()
+    extracted = ExtractedProgramInfo(
+        source_url="https://example.edu/programme",
+        page_title="Programme",
+        program_name="Master of Science in Computer Science",
+        deadline="December 1, 2026",
+        tuition="HK$320,000",
+        english_requirement="IELTS 6.5 overall.",
+        academic_requirement="Bachelor's degree in computer science.",
+        prerequisite_keywords=["calculus", "programming"],
+    )
+
+    draft = build_gold_label_draft(
+        target=target,
+        extracted_result=extracted,
+    )
+    output_path = write_gold_label_draft(
+        draft,
+        output_dir=tmp_path / "candidates",
+    )
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+
+    assert output_path.is_file()
+    assert draft.label_status == "manual_template_pending"
+    assert payload["program_code"] == "EXAMPLE_MSCS"
+    assert payload["mode"] == "official_seed"
+    assert payload["label_status"] == "manual_template_pending"
+    assert payload["fields"]["program_name"] == "Master of Science in Computer Science"
+    assert payload["fields"]["deadline"] == "December 1, 2026"
+    assert payload["fields"]["tuition"] == "HK$320,000"
+    assert payload["fields"]["english_requirement"] == "IELTS 6.5 overall."
+    assert payload["fields"]["academic_requirement"] == "Bachelor's degree in computer science."
+    assert payload["fields"]["prerequisite_keywords"] == ["calculus", "programming"]
+    assert payload["coverage_expectations"]["program_name"] is True
+    assert payload["coverage_expectations"]["english_requirement"] is True
+    assert "Machine-generated draft" in payload["notes"]
 
 
 def _write_official_seed_gold_label(

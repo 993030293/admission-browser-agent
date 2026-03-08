@@ -8,9 +8,12 @@ from typing import Sequence
 
 from .config import BrowserConfig, RunConfig
 from .evaluation import (
+    build_gold_label_draft,
+    default_gold_draft_dir,
     evaluate_official_seed_result,
     load_gold_label,
     resolve_eval_output_dir,
+    write_gold_label_draft,
     write_evaluation_report,
 )
 from .models import CrawlRequest
@@ -69,6 +72,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional directory containing official-seed gold labels named <PROGRAM_CODE>.json.",
     )
     parser.add_argument(
+        "--propose-gold-draft",
+        action="store_true",
+        help=(
+            "Write a machine-generated candidate gold-label draft for manual review "
+            "after each official-seed run."
+        ),
+    )
+    parser.add_argument(
+        "--gold-draft-dir",
+        help=(
+            "Optional output directory for machine-generated candidate gold-label drafts. "
+            "Defaults to data/gold/official-seed/candidates."
+        ),
+    )
+    parser.add_argument(
         "--headful",
         action="store_true",
         help="Launch the browser with a visible window instead of headless mode.",
@@ -85,10 +103,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     run_config = RunConfig(browser=BrowserConfig(headless=not args.headful))
     registry_path = Path(args.registry_path) if args.registry_path else None
     gold_dir = Path(args.gold_dir) if args.gold_dir else None
+    gold_draft_dir = Path(args.gold_draft_dir) if args.gold_draft_dir else default_gold_draft_dir()
 
     if args.mode in {"generic", "homepage"}:
         if args.benchmark:
             parser.exit(2, "Error: --benchmark currently supports only official-seed mode.\n")
+        if args.propose_gold_draft:
+            parser.exit(2, "Error: --propose-gold-draft currently supports only official-seed mode.\n")
         if not args.university:
             parser.exit(2, "Error: --university is required in generic mode.\n")
         if not args.seed_url:
@@ -154,6 +175,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         if index > 0:
             print()
         _print_official_seed_summary(pipeline, result, program_code=target.program_code)
+
+        if args.propose_gold_draft:
+            draft = build_gold_label_draft(
+                target=target,
+                extracted_result=result,
+            )
+            draft_output_path = write_gold_label_draft(
+                draft,
+                output_dir=gold_draft_dir,
+            )
+            print(f"gold_draft_output_path: {draft_output_path}")
+
         if args.benchmark:
             if gold_label is None:
                 raise RuntimeError("Benchmark requested without a loaded gold label.")

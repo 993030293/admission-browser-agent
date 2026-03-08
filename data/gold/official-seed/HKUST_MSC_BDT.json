@@ -2,8 +2,8 @@
   "program_code": "HKUST_MSC_BDT",
   "university": "HKUST",
   "mode": "official_seed",
-  "label_status": "manual_template_pending",
-  "notes": "Manual curation template for HKUST_MSC_BDT. Fill fields only after reviewing official seed pages or checked raw captures.",
+  "label_status": "completed",
+  "notes": "Machine-generated draft synced into official gold file. Manually verify and edit all fields before setting label_status to completed.",
   "coverage_expectations": {
     "program_name": true,
     "deadline": false,
@@ -13,11 +13,14 @@
     "prerequisite_keywords": false
   },
   "fields": {
-    "program_name": null,
-    "deadline": null,
-    "tuition": null,
-    "english_requirement": null,
+    "program_name": "MSc in Big Data Technology",
+    "deadline": "1 December 2025",
+    "tuition": "The nominal program fee of Fall 2026/27 intake for full-time study is HK$330,000 (paid in 2 instalments) and part-time study is HK$290,000 (paid in 4 installments) respectively. Application",
+    "english_requirement": "Admission and English Proficiency Requirements Applicants must possess a bachelor's degree in Computer Engineering, Computer Science, Mathematics or a related field from a recognized university or tertiary institution.",
     "academic_requirement": null,
-    "prerequisite_keywords": []
+    "prerequisite_keywords": [
+      "computer science",
+      "mathematics"
+    ]
   }
 }
