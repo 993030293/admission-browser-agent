@@ -33,7 +33,7 @@ _MONTH_NAME_PATTERN = (
     r"jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)"
 )
 _CURRENCY_VALUE_PATTERN = re.compile(
-    r"\b(?:hk\$|us\$|usd|eur|gbp|\$)\s*(\d[\d,]*(?:\.\d{2})?)\b",
+    r"\b(?:hk\$|hkd|us\$|usd|eur|gbp|\$)\s*(\d[\d,]*(?:\.\d{2})?)\b",
     flags=re.IGNORECASE,
 )
 READY_GOLD_LABEL_STATUSES: frozenset[str] = frozenset(

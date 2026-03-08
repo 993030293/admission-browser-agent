@@ -206,7 +206,7 @@ _FIELD_HINT_KEYWORDS: dict[str, tuple[tuple[str, int], ...]] = {
         ("curriculum", 1),
     ),
 }
-_CURRENCY_PATTERN = re.compile(r"\b(?:HK\$|US\$|USD|EUR|GBP|\$)\s*\d[\d,]*(?:\.\d{2})?\b", re.IGNORECASE)
+_CURRENCY_PATTERN = re.compile(r"\b(?:HK\$|HKD|US\$|USD|EUR|GBP|\$)\s*\d[\d,]*(?:\.\d{2})?\b", re.IGNORECASE)
 _YEAR_PATTERN = re.compile(r"\b20\d{2}\b")
 _MONTH_PATTERN = re.compile(
     r"\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|"
@@ -220,6 +220,13 @@ _DEADLINE_VALUE_REJECTION_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\bfor details?\b", re.IGNORECASE),
     re.compile(r"\bapplication method\b", re.IGNORECASE),
 )
+_DEADLINE_VALUE_ACCEPTANCE_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"\b20\d{2}\b"),
+    re.compile(r"\b\d{1,2}/\d{1,2}/\d{2,4}\b"),
+    re.compile(r"\b\d{4}-\d{2}-\d{2}\b"),
+    re.compile(r"\brolling\b", re.IGNORECASE),
+    re.compile(r"\bround\s*\d\b", re.IGNORECASE),
+)
 _TUITION_VALUE_REJECTION_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\bapplication fees?\b", re.IGNORECASE),
     re.compile(r"\bcaution money\b", re.IGNORECASE),
@@ -227,6 +234,19 @@ _TUITION_VALUE_REJECTION_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\bgraduation\b", re.IGNORECASE),
     re.compile(r"\bre-?examination\b", re.IGNORECASE),
     re.compile(r"\brepeating\b", re.IGNORECASE),
+    re.compile(r"\btuition fee reduction\b", re.IGNORECASE),
+    re.compile(r"\bfee reduction\b", re.IGNORECASE),
+    re.compile(r"\bcredit transfer\b", re.IGNORECASE),
+    re.compile(r"\bexemption\b", re.IGNORECASE),
+    re.compile(r"\bmicromasters?\b", re.IGNORECASE),
+)
+_TUITION_CONTEXT_NOISE_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"\bwaiv(?:er|ed|ing)?\b", re.IGNORECASE),
+    re.compile(r"\bscholarship\b", re.IGNORECASE),
+    re.compile(r"\bfellowship\b", re.IGNORECASE),
+    re.compile(r"\bftss\b", re.IGNORECASE),
+    re.compile(r"\bfinancial aid\b", re.IGNORECASE),
+    re.compile(r"\bsubsid(?:y|ies|ized|ised)\b", re.IGNORECASE),
 )
 
 
@@ -737,6 +757,11 @@ def _is_field_value_eligible(field_name: str, value: str | list[str] | dict[str,
             return False
         if "http" in lowered and not (_MONTH_PATTERN.search(normalized) and _YEAR_PATTERN.search(normalized)):
             return False
+        has_date_signal = bool(_MONTH_PATTERN.search(normalized) and _YEAR_PATTERN.search(normalized)) or any(
+            pattern.search(normalized) for pattern in _DEADLINE_VALUE_ACCEPTANCE_PATTERNS
+        )
+        if not has_date_signal:
+            return False
     if field_name == "department":
         lowered = normalized.lower()
         if not any(keyword in lowered for keyword in ("department", "school", "faculty", "college", "institute")):
@@ -759,8 +784,10 @@ def _is_field_value_eligible(field_name: str, value: str | list[str] | dict[str,
             return False
         if any(pattern.search(lowered) for pattern in _TUITION_VALUE_REJECTION_PATTERNS):
             return False
+        if any(pattern.search(lowered) for pattern in _TUITION_CONTEXT_NOISE_PATTERNS):
+            return False
         amounts = _extract_currency_amounts(normalized)
-        if amounts and max(amounts) < 10_000:
+        if amounts and max(amounts) < 50_000:
             return False
         if "government-funded programmes" in lowered and "master of" not in lowered and "mdasc" not in lowered:
             return False

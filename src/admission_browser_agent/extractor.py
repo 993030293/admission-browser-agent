@@ -23,7 +23,7 @@ class AdmissionsExtractor:
         re.compile(r"\b\d{1,2}/\d{1,2}/\d{2,4}\b"),
     )
     _CURRENCY_PATTERN = re.compile(
-        r"\b(?:HK\$|US\$|USD|EUR|GBP|\$)\s*\d[\d,]*(?:\.\d{2})?\b",
+        r"\b(?:HK\$|HKD|US\$|USD|EUR|GBP|\$)\s*\d[\d,]*(?:\.\d{2})?\b",
         re.IGNORECASE,
     )
     _PROGRAM_PATTERNS = (
@@ -157,6 +157,20 @@ class AdmissionsExtractor:
         "re-examination",
         "re examination",
         "repeating",
+        "tuition fee reduction",
+        "fee reduction",
+        "credit transfer",
+        "exemption",
+        "micromasters",
+    )
+    _TUITION_CONTEXT_NOISE_KEYWORDS = (
+        "tuition fee",
+        "tuition fees",
+        "programme fee",
+        "program fee",
+        "scholarship",
+        "fellowship",
+        "ftss",
     )
     _DEADLINE_REJECTION_KEYWORDS = (
         "please visit",
@@ -303,12 +317,12 @@ class AdmissionsExtractor:
         return None
 
     def _extract_department(self, lines: list[str]) -> str | None:
-        for line in lines[:40]:
+        for line in lines[:120]:
             normalized = self._normalize_text(line)
             for pattern in self._DEPARTMENT_PATTERNS:
                 match = pattern.search(normalized)
                 if match:
-                    value = self._clean_extracted_text(match.group(0))
+                    value = self._clean_department_candidate(match.group(0))
                     if value and len(value.split()) >= 3:
                         return value
         return None
@@ -318,10 +332,30 @@ class AdmissionsExtractor:
         for index, line in enumerate(lines):
             snippet = self._snippet_with_context(lines, index)
             lowered = snippet.lower()
-            if not any(keyword in lowered for keyword in ("duration", "full-time", "part-time", "year", "month")):
+            window_text = self._normalize_text(
+                " ".join(lines[max(0, index - 1) : min(len(lines), index + 2)])
+            )
+            lowered_window = window_text.lower()
+            has_duration_label = any(
+                keyword in lowered or keyword in lowered_window
+                for keyword in self._DURATION_LABELS
+            )
+            has_duration_units = bool(
+                re.search(r"\b\d(?:\.\d+)?\s*(?:year|years|month|months)\b", lowered)
+                or re.search(r"\b\d(?:\.\d+)?\s*(?:year|years|month|months)\b", lowered_window)
+            )
+            has_mode = any(
+                keyword in lowered or keyword in lowered_window
+                for keyword in ("full-time", "part-time", "full time", "part time")
+            )
+            if not (has_duration_label or (has_duration_units and has_mode)):
+                continue
+            if any(keyword in lowered for keyword in self._TUITION_CONTEXT_NOISE_KEYWORDS) and not has_duration_label:
                 continue
 
-            labeled_value = self._clean_extracted_text(self._strip_label(snippet, self._DURATION_LABELS))
+            labeled_value = self._normalize_duration_value(
+                self._clean_extracted_text(self._strip_label(snippet, self._DURATION_LABELS))
+            )
             if re.search(r"\b\d(?:\.\d+)?\s*(?:year|years|month|months)\b", labeled_value, re.IGNORECASE):
                 score = 18 + len(labeled_value)
                 if "/" in labeled_value:
@@ -330,11 +364,20 @@ class AdmissionsExtractor:
                     score += 4
                 candidates.append((score, labeled_value))
 
+            window_value = self._normalize_duration_value(window_text)
+            if re.search(r"\b\d(?:\.\d+)?\s*(?:year|years|month|months)\b", window_value, re.IGNORECASE):
+                score = 14 + len(window_value)
+                if has_duration_label:
+                    score += 4
+                if has_mode:
+                    score += 3
+                candidates.append((score, window_value))
+
             for pattern in self._DURATION_PATTERNS:
                 match = pattern.search(snippet)
                 if match is None:
                     continue
-                value = self._clean_extracted_text(match.group(0))
+                value = self._normalize_duration_value(self._clean_extracted_text(match.group(0)))
                 score = 5 + len(value)
                 if re.match(r"^\d", value):
                     score += 3
@@ -388,7 +431,7 @@ class AdmissionsExtractor:
 
             cleaned = self._clean_extracted_text(self._strip_label(snippet, self._TUITION_LABELS))
             cleaned = self._extract_tuition_value(cleaned)
-            score = self._tuition_candidate_score(cleaned)
+            score = self._tuition_candidate_score(cleaned, context_text=snippet)
             if score > 0:
                 candidates.append((score, cleaned))
 
@@ -405,6 +448,7 @@ class AdmissionsExtractor:
                 self._strip_label(snippet, self._ENGLISH_REQUIREMENT_LABELS)
             )
             english_sentence = self._extract_relevant_sentence(cleaned, self._is_english_requirement_line)
+            english_sentence = self._trim_mixed_requirement_tail(english_sentence)
             score = self._english_requirement_candidate_score(english_sentence)
             if score > 0 and english_sentence:
                 candidates.append((score, english_sentence))
@@ -503,7 +547,7 @@ class AdmissionsExtractor:
             and not self._looks_like_header(lines[index + 1])
         ):
             parts = [line]
-            for look_ahead_index in range(index + 1, min(index + 3, len(lines))):
+            for look_ahead_index in range(index + 1, min(index + 4, len(lines))):
                 if self._looks_like_header(lines[look_ahead_index]):
                     break
                 parts.append(lines[look_ahead_index])
@@ -555,7 +599,7 @@ class AdmissionsExtractor:
         return True
 
     def _is_academic_requirement_line(self, line: str) -> bool:
-        if self._looks_like_english_requirement_content(line):
+        if self._looks_like_english_requirement_content(line) and not self._has_academic_requirement_content(line):
             return False
         if any(keyword in line for keyword in self._ACADEMIC_REQUIREMENT_LABELS):
             return True
@@ -664,7 +708,11 @@ class AdmissionsExtractor:
         if local_non_local_match:
             return self._clean_extracted_text(local_non_local_match.group(1))
 
-        if self._CURRENCY_PATTERN.search(text):
+        currency_matches = [match.group(0) for match in self._CURRENCY_PATTERN.finditer(text)]
+        if currency_matches:
+            lowered = text.lower()
+            if any(keyword in lowered for keyword in ("full time", "part-time", "part time", "full-time")):
+                return self._clean_extracted_text(currency_matches[0])
             return text
         return None
 
@@ -687,6 +735,48 @@ class AdmissionsExtractor:
             return cleaned
         return None
 
+    def _trim_mixed_requirement_tail(self, text: str | None) -> str | None:
+        if not text:
+            return text
+        lowered = text.lower()
+        if "english" not in lowered and "language" not in lowered and "ielts" not in lowered and "toefl" not in lowered:
+            return text
+
+        split_patterns = (
+            r"\bapplicants?\s+must\s+possess\b",
+            r"\bapplicants?\s+shall\s+possess\b",
+            r"\bapplicants?\s+should\s+possess\b",
+            r"\bapplicants?\s+must\s+hold\b",
+            r"\bcandidates?\s+must\s+possess\b",
+        )
+        for pattern in split_patterns:
+            match = re.search(pattern, lowered)
+            if match is None:
+                continue
+            head = self._clean_extracted_text(text[: match.start()])
+            if head and self._is_english_requirement_line(head.lower()):
+                return head
+        return text
+
+    def _normalize_duration_value(self, text: str) -> str:
+        cleaned = self._clean_extracted_text(text)
+        cleaned = re.sub(
+            r"^(?:normative\s+study\s+)?duration[:\-\s]*",
+            "",
+            cleaned,
+            flags=re.IGNORECASE,
+        )
+        if "/" in cleaned and any(token in cleaned.lower() for token in ("full", "part")):
+            return cleaned
+        match = re.search(
+            r"\b\d(?:\.\d+)?\s*(?:year|years|month|months)\b(?:\s*\([^)]{1,40}\))?",
+            cleaned,
+            flags=re.IGNORECASE,
+        )
+        if match is not None:
+            return self._clean_extracted_text(match.group(0))
+        return cleaned
+
     def _clean_extracted_text(self, text: str) -> str:
         cleaned = self._normalize_text(text)
         cleaned = re.sub(r"^[\s\-:;,.()]+", "", cleaned)
@@ -698,6 +788,14 @@ class AdmissionsExtractor:
         cleaned = self._normalize_text(value)
         cleaned = re.split(r"\b(?:admissions?|overview|programme|program)\b", cleaned, maxsplit=1, flags=re.IGNORECASE)[0]
         return cleaned.rstrip(" -|:")
+
+    def _clean_department_candidate(self, value: str) -> str:
+        cleaned = self._clean_extracted_text(value)
+        cleaned = re.split(r"\b(?:is|are|was|were)\b", cleaned, maxsplit=1, flags=re.IGNORECASE)[0]
+        cleaned = cleaned.strip(" -|:;,.")
+        if len(cleaned.split()) > 14:
+            return ""
+        return cleaned
 
     def _looks_like_header(self, line: str) -> bool:
         lowered = line.lower().rstrip(":")
@@ -740,11 +838,13 @@ class AdmissionsExtractor:
             )
         )
 
-    def _tuition_candidate_score(self, text: str | None) -> int:
+    def _tuition_candidate_score(self, text: str | None, *, context_text: str | None = None) -> int:
         if not text:
             return 0
 
         lowered = text.lower()
+        lowered_context = context_text.lower() if context_text else ""
+        lowered_combined = f"{lowered} {lowered_context}".strip()
         if any(keyword in lowered for keyword in self._TUITION_REJECTION_KEYWORDS):
             return 0
         if self._looks_like_header(text):
@@ -765,11 +865,11 @@ class AdmissionsExtractor:
         if not numeric_amounts:
             return 0
         max_amount = max(numeric_amounts)
-        if max_amount < 10_000:
+        if max_amount < 50_000:
             return 0
 
         if not any(
-            keyword in lowered
+            keyword in lowered_combined
             for keyword in (
                 "tuition",
                 "fee",

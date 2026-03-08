@@ -4336,6 +4336,63 @@ def test_extractor_includes_department_duration_and_foundation_mentions() -> Non
     assert result.foundation_mentions["mathematics"] is True
 
 
+def test_extractor_department_drops_descriptive_tail() -> None:
+    from admission_browser_agent.extractor import AdmissionsExtractor
+    from admission_browser_agent.models import RawPageCapture
+
+    capture = RawPageCapture(
+        source_url="https://example.edu/programme",
+        page_title="Programme Information",
+        body_text=(
+            "Faculty of Engineering is a hub of cutting-edge research and technology transfer.\n"
+        ),
+    )
+
+    result = AdmissionsExtractor().extract(capture=capture)
+
+    assert result.department == "Faculty of Engineering"
+
+
+def test_extractor_recognizes_hkd_tuition_and_full_time_duration() -> None:
+    from admission_browser_agent.extractor import AdmissionsExtractor
+    from admission_browser_agent.models import RawPageCapture
+
+    capture = RawPageCapture(
+        source_url="https://example.edu/programme-information",
+        page_title="Programme Information",
+        body_text=(
+            "Normative Study Duration\n"
+            "Full time\n"
+            "1.5 years (maximum 3 years)\n"
+            "Tuition Fee\n"
+            "HKD 380,000\n"
+        ),
+    )
+
+    result = AdmissionsExtractor().extract(capture=capture)
+
+    assert result.duration == "1.5 years (maximum 3 years)"
+    assert result.tuition == "HKD 380,000"
+
+
+def test_extractor_tuition_prefers_currency_token_for_full_time_row() -> None:
+    from admission_browser_agent.extractor import AdmissionsExtractor
+    from admission_browser_agent.models import RawPageCapture
+
+    capture = RawPageCapture(
+        source_url="https://example.edu/programme-information",
+        page_title="Programme Information",
+        body_text=(
+            "Tuition Fee\n"
+            "Full time 1.5 years (maximum 3 years) HKD 380,000\n"
+        ),
+    )
+
+    result = AdmissionsExtractor().extract(capture=capture)
+
+    assert result.tuition == "HKD 380,000"
+
+
 def test_export_program_result_writes_json_csv_and_markdown(tmp_path: Path) -> None:
     from admission_browser_agent.exports import export_program_result, parse_export_formats
     from admission_browser_agent.models import ExtractedProgramInfo, OfficialSeedPage, OfficialTargetDefinition
