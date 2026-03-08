@@ -49,6 +49,7 @@ admission-browser-agent/
 |- README.md
 |- requirements.txt
 |- data/
+|  |- exports/
 |  |- gold/
 |  |  \- official-seed/
 |  |     |- CUHK_MSC_AI.json
@@ -66,6 +67,7 @@ admission-browser-agent/
 |     |- cli.py
 |     |- config.py
 |     |- evaluation.py
+|     |- exports.py
 |     |- extractor.py
 |     |- models.py
 |     |- pipeline.py
@@ -102,7 +104,7 @@ python -m pip install -r requirements.txt
 python -m playwright install chromium
 ```
 
-Then choose one of the two execution modes.
+Then choose one of the execution modes.
 
 Generic exploration mode:
 
@@ -130,6 +132,16 @@ python -m admission_browser_agent.cli --mode official-seed --all-programs
 ```
 
 This is an optional benchmark-oriented path. It fetches only the manually curated official program pages from `data/targets/official_seed_pages.json` and writes separate artifacts under `data/raw/official-seed/` and `data/processed/official-seed/`.
+
+MVP mode (short query -> official pages -> structured export):
+
+```powershell
+$env:PYTHONPATH="src"
+python -m admission_browser_agent.cli --mode mvp --query "HKU AI" --export-formats "json,csv,markdown"
+```
+
+This mode resolves short queries such as `HKU AI`, `HKUST BDT`, and `CUHK AI` to curated official targets, runs the official-seed pipeline, and writes flat structured exports under `data/exports/mvp/`.
+MVP exports include at least: `program_name`, `department`, `duration`, `tuition`, `deadline`, `language_requirement`, `background_requirement`, and whether statistics/programming/mathematics foundation is mentioned.
 
 The legacy `--mode homepage` spelling is still accepted as a backward-compatible alias for `--mode generic`.
 

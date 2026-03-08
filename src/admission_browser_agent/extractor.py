@@ -36,6 +36,26 @@ class AdmissionsExtractor:
             re.IGNORECASE,
         ),
     )
+    _DEPARTMENT_PATTERNS = (
+        re.compile(
+            r"\b(?:Department|School|Faculty|College|Institute)\s+of\s+[A-Za-z][A-Za-z0-9&(),/ \-]{2,}",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            r"\b(?:Department|School|Faculty|College|Institute)\s+[A-Za-z][A-Za-z0-9&(),/ \-]{2,}",
+            re.IGNORECASE,
+        ),
+    )
+    _DURATION_PATTERNS = (
+        re.compile(
+            r"\b\d(?:\.\d+)?\s*(?:year|years|month|months)\b(?:[^.]{0,80}?\b(?:full[- ]time|part[- ]time)\b)?",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            r"\b(?:full[- ]time|part[- ]time)\b[^.]{0,80}?\b\d(?:\.\d+)?\s*(?:year|years|month|months)\b",
+            re.IGNORECASE,
+        ),
+    )
     _HEADER_LABELS = (
         "english requirement",
         "english requirements",
@@ -110,6 +130,13 @@ class AdmissionsExtractor:
         "program fees",
         "fee",
         "fees",
+    )
+    _DURATION_LABELS = (
+        "duration",
+        "study period",
+        "normal study period",
+        "period of study",
+        "study mode",
     )
     _OPENING_KEYWORDS = (
         "opens on",
@@ -218,6 +245,14 @@ class AdmissionsExtractor:
         ("algorithms", re.compile(r"\balgorithms?\b", re.IGNORECASE)),
         ("data structures", re.compile(r"\bdata structures?\b", re.IGNORECASE)),
     )
+    _FOUNDATION_MENTION_PATTERNS = {
+        "statistics": re.compile(r"\bstatistics?\b|\bprobabilit(?:y|ies)\b", re.IGNORECASE),
+        "programming": re.compile(r"\bprogramming\b|\bpython\b|\bcoding\b", re.IGNORECASE),
+        "mathematics": re.compile(
+            r"\bmathematics?\b|\bmath\b|\bcalculus\b|\balgebra\b|\blinear algebra\b",
+            re.IGNORECASE,
+        ),
+    }
 
     def extract(
         self,
@@ -228,16 +263,24 @@ class AdmissionsExtractor:
 
         lines = self._build_lines(capture)
         academic_requirement = self._extract_academic_requirement(lines)
+        prerequisite_keywords = self._extract_prerequisite_keywords(lines, academic_requirement)
+        foundation_mentions = self._extract_foundation_mentions(
+            lines,
+            prerequisite_keywords=prerequisite_keywords,
+        )
 
         return ExtractedProgramInfo(
             source_url=capture.source_url,
             page_title=capture.page_title,
             program_name=self._extract_program_name(capture.page_title, lines),
+            department=self._extract_department(lines),
+            duration=self._extract_duration(lines),
             deadline=self._extract_deadline(lines),
             tuition=self._extract_tuition(lines),
             english_requirement=self._extract_english_requirement(lines),
             academic_requirement=academic_requirement,
-            prerequisite_keywords=self._extract_prerequisite_keywords(lines, academic_requirement),
+            prerequisite_keywords=prerequisite_keywords,
+            foundation_mentions=foundation_mentions,
         )
 
     def _build_lines(self, capture: RawPageCapture) -> list[str]:
@@ -258,6 +301,49 @@ class AdmissionsExtractor:
                 if match:
                     return self._clean_program_name(match.group(0))
         return None
+
+    def _extract_department(self, lines: list[str]) -> str | None:
+        for line in lines[:40]:
+            normalized = self._normalize_text(line)
+            for pattern in self._DEPARTMENT_PATTERNS:
+                match = pattern.search(normalized)
+                if match:
+                    value = self._clean_extracted_text(match.group(0))
+                    if value and len(value.split()) >= 3:
+                        return value
+        return None
+
+    def _extract_duration(self, lines: list[str]) -> str | None:
+        candidates: list[tuple[int, str]] = []
+        for index, line in enumerate(lines):
+            snippet = self._snippet_with_context(lines, index)
+            lowered = snippet.lower()
+            if not any(keyword in lowered for keyword in ("duration", "full-time", "part-time", "year", "month")):
+                continue
+
+            labeled_value = self._clean_extracted_text(self._strip_label(snippet, self._DURATION_LABELS))
+            if re.search(r"\b\d(?:\.\d+)?\s*(?:year|years|month|months)\b", labeled_value, re.IGNORECASE):
+                score = 18 + len(labeled_value)
+                if "/" in labeled_value:
+                    score += 4
+                if "full-time" in labeled_value.lower() and "part-time" in labeled_value.lower():
+                    score += 4
+                candidates.append((score, labeled_value))
+
+            for pattern in self._DURATION_PATTERNS:
+                match = pattern.search(snippet)
+                if match is None:
+                    continue
+                value = self._clean_extracted_text(match.group(0))
+                score = 5 + len(value)
+                if re.match(r"^\d", value):
+                    score += 3
+                if "duration" in lowered:
+                    score += 8
+                if "full-time" in lowered or "part-time" in lowered:
+                    score += 4
+                candidates.append((score, value))
+        return self._best_candidate_text(candidates)
 
     def _extract_deadline(self, lines: list[str]) -> str | None:
         candidates: list[tuple[int, str]] = []
@@ -383,6 +469,20 @@ class AdmissionsExtractor:
             if pattern.search(context_text):
                 found_keywords.append(label)
         return found_keywords
+
+    def _extract_foundation_mentions(
+        self,
+        lines: list[str],
+        *,
+        prerequisite_keywords: list[str],
+    ) -> dict[str, bool]:
+        text = " ".join(lines)
+        prerequisite_text = " ".join(prerequisite_keywords)
+        combined = f"{text} {prerequisite_text}".strip()
+        mentions: dict[str, bool] = {}
+        for key, pattern in self._FOUNDATION_MENTION_PATTERNS.items():
+            mentions[key] = bool(pattern.search(combined))
+        return mentions
 
     def _find_snippet(
         self,

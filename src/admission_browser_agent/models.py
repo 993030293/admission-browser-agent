@@ -68,11 +68,14 @@ class ExtractedProgramInfo:
     source_url: str
     page_title: str
     program_name: str | None = None
+    department: str | None = None
+    duration: str | None = None
     deadline: str | None = None
     tuition: str | None = None
     english_requirement: str | None = None
     academic_requirement: str | None = None
     prerequisite_keywords: list[str] = field(default_factory=list)
+    foundation_mentions: dict[str, bool] = field(default_factory=dict)
     field_sources: dict[str, list[str]] = field(default_factory=dict)
 
 
@@ -97,7 +100,7 @@ class FieldValueCandidateDebug:
 
     source_url: str
     page_title: str
-    value: str | list[str] | None
+    value: str | list[str] | dict[str, bool] | None
     hint_score: int
     specificity_score: int
     completeness_score: int
@@ -110,7 +113,7 @@ class FieldAggregationDecision:
     """Debug information describing how one aggregated field was chosen."""
 
     field_name: str
-    selected_value: str | list[str] | None
+    selected_value: str | list[str] | dict[str, bool] | None
     source_urls: list[str] = field(default_factory=list)
     strategy: str = ""
     candidates: list[FieldValueCandidateDebug] = field(default_factory=list)

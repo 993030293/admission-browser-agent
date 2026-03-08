@@ -119,6 +119,23 @@ _FIELD_HINT_KEYWORDS: dict[str, tuple[tuple[str, int], ...]] = {
         ("master", 2),
         ("msc", 2),
     ),
+    "department": (
+        ("department", 8),
+        ("school", 6),
+        ("faculty", 6),
+        ("college", 5),
+        ("about", 2),
+        ("programme information", 2),
+    ),
+    "duration": (
+        ("duration", 8),
+        ("study mode", 5),
+        ("full-time", 4),
+        ("part-time", 4),
+        ("programme information", 2),
+        ("program information", 2),
+        ("overview", 1),
+    ),
     "deadline": (
         ("application deadline", 6),
         ("application deadlines", 6),
@@ -356,6 +373,10 @@ def score_extracted_program(result: ExtractedProgramInfo) -> int:
     score = 0
     if result.program_name:
         score += 2
+    if result.department:
+        score += 1
+    if result.duration:
+        score += 1
     if result.deadline:
         score += 2
     if result.tuition:
@@ -366,6 +387,8 @@ def score_extracted_program(result: ExtractedProgramInfo) -> int:
         score += 2
     if result.prerequisite_keywords:
         score += min(len(result.prerequisite_keywords), 3)
+    if result.foundation_mentions:
+        score += sum(1 for value in result.foundation_mentions.values() if value)
     return score
 
 
@@ -384,6 +407,8 @@ def select_best_program_result(
     scored.sort(
         key=lambda item: (
             -item.completeness_score,
+            -int(bool(item.result.department)),
+            -int(bool(item.result.duration)),
             -int(bool(item.result.deadline)),
             -int(bool(item.result.tuition)),
             -int(bool(item.result.english_requirement)),
@@ -433,6 +458,8 @@ def aggregate_program_results_with_debug(
 
     for field_name in (
         "program_name",
+        "department",
+        "duration",
         "deadline",
         "tuition",
         "english_requirement",
@@ -464,6 +491,21 @@ def aggregate_program_results_with_debug(
     )
     if prerequisite_sources:
         aggregated.field_sources["prerequisite_keywords"] = prerequisite_sources
+
+    foundation_mentions, foundation_sources, foundation_candidates = _merge_foundation_mentions(
+        results,
+        page_hint_text_by_url=page_hint_text_by_url,
+    )
+    aggregated.foundation_mentions = foundation_mentions
+    decisions["foundation_mentions"] = FieldAggregationDecision(
+        field_name="foundation_mentions",
+        selected_value=foundation_mentions,
+        source_urls=foundation_sources,
+        strategy="merge_true_flags_from_ranked_pages",
+        candidates=foundation_candidates,
+    )
+    if foundation_sources:
+        aggregated.field_sources["foundation_mentions"] = foundation_sources
 
     return AggregationOutcome(aggregated_result=aggregated, decisions=decisions)
 
@@ -602,6 +644,66 @@ def _merge_prerequisite_keywords(
     return merged_keywords, merged_sources, candidate_debug
 
 
+def _merge_foundation_mentions(
+    results: list[ExtractedProgramInfo],
+    *,
+    page_hint_text_by_url: dict[str, str],
+) -> tuple[dict[str, bool], list[str], list[FieldValueCandidateDebug]]:
+    ordered_results = sorted(
+        results,
+        key=lambda result: (
+            -_field_hint_score(
+                "academic_requirement",
+                result,
+                page_hint_text_by_url=page_hint_text_by_url,
+            ),
+            -score_extracted_program(result),
+            result.source_url,
+        ),
+    )
+
+    merged_mentions = {
+        "statistics": False,
+        "programming": False,
+        "mathematics": False,
+    }
+    merged_sources: list[str] = []
+    candidate_debug: list[FieldValueCandidateDebug] = []
+
+    for result in ordered_results:
+        mentions = {
+            "statistics": bool(result.foundation_mentions.get("statistics", False)),
+            "programming": bool(result.foundation_mentions.get("programming", False)),
+            "mathematics": bool(result.foundation_mentions.get("mathematics", False)),
+        }
+        contributed = False
+        for key, value in mentions.items():
+            if value and not merged_mentions[key]:
+                merged_mentions[key] = True
+                contributed = True
+        if contributed and result.source_url not in merged_sources:
+            merged_sources.append(result.source_url)
+        candidate_debug.append(
+            FieldValueCandidateDebug(
+                source_url=result.source_url,
+                page_title=result.page_title,
+                value=mentions,
+                hint_score=_field_hint_score(
+                    "academic_requirement",
+                    result,
+                    page_hint_text_by_url=page_hint_text_by_url,
+                ),
+                specificity_score=sum(1 for value in mentions.values() if value),
+                completeness_score=score_extracted_program(result),
+                eligible=any(mentions.values()),
+                selected=contributed,
+            )
+        )
+
+    candidate_debug.sort(key=lambda candidate: _field_candidate_display_sort_key(candidate))
+    return merged_mentions, merged_sources, candidate_debug
+
+
 def _field_hint_score(
     field_name: str,
     result: ExtractedProgramInfo,
@@ -619,11 +721,13 @@ def _field_hint_score(
     return score
 
 
-def _is_field_value_eligible(field_name: str, value: str | list[str] | None) -> bool:
+def _is_field_value_eligible(field_name: str, value: str | list[str] | dict[str, bool] | None) -> bool:
     if value is None:
         return False
     if isinstance(value, list):
         return bool(value)
+    if isinstance(value, dict):
+        return any(bool(item) for item in value.values())
     normalized = value.strip()
     if not normalized:
         return False
@@ -632,6 +736,22 @@ def _is_field_value_eligible(field_name: str, value: str | list[str] | None) -> 
         if any(pattern.search(lowered) for pattern in _DEADLINE_VALUE_REJECTION_PATTERNS):
             return False
         if "http" in lowered and not (_MONTH_PATTERN.search(normalized) and _YEAR_PATTERN.search(normalized)):
+            return False
+    if field_name == "department":
+        lowered = normalized.lower()
+        if not any(keyword in lowered for keyword in ("department", "school", "faculty", "college", "institute")):
+            return False
+        if len(normalized.split()) < 3:
+            return False
+    if field_name == "duration":
+        lowered = normalized.lower()
+        if not (
+            re.search(r"\b\d(?:\.\d+)?\s*(?:year|years|month|months)\b", lowered)
+            or (
+                any(keyword in lowered for keyword in ("full-time", "part-time"))
+                and any(keyword in lowered for keyword in ("year", "years", "month", "months"))
+            )
+        ):
             return False
     if field_name == "tuition":
         lowered = normalized.lower()
@@ -663,6 +783,18 @@ def _field_specificity_score(field_name: str, value: str) -> int:
 
     if field_name == "program_name":
         return (20 if _PROGRAM_WORD_PATTERN.search(normalized) else 0) + word_count + len(normalized)
+    if field_name == "department":
+        return (
+            (20 if any(keyword in normalized.lower() for keyword in ("department", "school", "faculty", "college")) else 0)
+            + word_count
+            + len(normalized)
+        )
+    if field_name == "duration":
+        return (
+            (20 if re.search(r"\byears?\b|\bmonths?\b", normalized, re.IGNORECASE) else 0)
+            + word_count
+            + len(normalized)
+        )
     if field_name == "deadline":
         return (
             (20 if _YEAR_PATTERN.search(normalized) else 0)

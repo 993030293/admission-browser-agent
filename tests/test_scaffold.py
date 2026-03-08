@@ -24,6 +24,7 @@ def test_placeholder_modules_import() -> None:
         "admission_browser_agent.cli",
         "admission_browser_agent.config",
         "admission_browser_agent.evaluation",
+        "admission_browser_agent.exports",
         "admission_browser_agent.extractor",
         "admission_browser_agent.models",
         "admission_browser_agent.navigator",
@@ -197,6 +198,9 @@ def test_cli_parser_includes_required_arguments() -> None:
     assert "--gold-draft-dir" in help_text
     assert "--program-code" in help_text
     assert "--all-programs" in help_text
+    assert "--query" in help_text
+    assert "--export-formats" in help_text
+    assert "mvp" in help_text
 
 
 def test_browser_session_fetches_page_with_fake_playwright(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -4263,3 +4267,210 @@ def test_cli_runs_benchmark_for_official_seed_program(
     assert "skipped_fields_due_to_missing_truth: none" in captured.out
     assert "score_not_meaningful: False" in captured.out
     assert "overall_field_score: 1.000" in captured.out
+
+
+def test_resolve_target_definition_from_query_uses_short_alias() -> None:
+    from admission_browser_agent.models import OfficialSeedPage, OfficialSeedRegistry, OfficialTargetDefinition
+    from admission_browser_agent.targets import resolve_target_definition_from_query
+
+    registry = OfficialSeedRegistry(
+        targets=[
+            OfficialTargetDefinition(
+                university="HKU",
+                program_code="HKU_MSC_AI",
+                program_name="Master of Science in Artificial Intelligence",
+                tier="reach",
+                seed_pages=[
+                    OfficialSeedPage(
+                        page_type="admissions",
+                        url="https://example.edu/hku-ai",
+                        priority=1,
+                        intended_fields=["deadline"],
+                    )
+                ],
+            ),
+            OfficialTargetDefinition(
+                university="HKUST",
+                program_code="HKUST_MSC_BDT",
+                program_name="MSc in Big Data Technology",
+                tier="target",
+                seed_pages=[
+                    OfficialSeedPage(
+                        page_type="programme",
+                        url="https://example.edu/hkust-bdt",
+                        priority=1,
+                        intended_fields=["tuition"],
+                    )
+                ],
+            ),
+        ]
+    )
+
+    resolved = resolve_target_definition_from_query(registry, query="HKU AI")
+
+    assert resolved.program_code == "HKU_MSC_AI"
+
+
+def test_extractor_includes_department_duration_and_foundation_mentions() -> None:
+    from admission_browser_agent.extractor import AdmissionsExtractor
+    from admission_browser_agent.models import RawPageCapture
+
+    capture = RawPageCapture(
+        source_url="https://example.edu/programme",
+        page_title="Master of Science in Data Science",
+        body_text=(
+            "Department of Computer Science\n"
+            "Duration: 1.5 years (full-time) / 2.5 years (part-time)\n"
+            "Applicants should have background in statistics, programming, and linear algebra.\n"
+        ),
+    )
+
+    result = AdmissionsExtractor().extract(capture=capture)
+
+    assert result.department == "Department of Computer Science"
+    assert "1.5 years" in (result.duration or "")
+    assert result.foundation_mentions["statistics"] is True
+    assert result.foundation_mentions["programming"] is True
+    assert result.foundation_mentions["mathematics"] is True
+
+
+def test_export_program_result_writes_json_csv_and_markdown(tmp_path: Path) -> None:
+    from admission_browser_agent.exports import export_program_result, parse_export_formats
+    from admission_browser_agent.models import ExtractedProgramInfo, OfficialSeedPage, OfficialTargetDefinition
+
+    target = OfficialTargetDefinition(
+        university="HKU",
+        program_code="HKU_MSC_AI",
+        program_name="Master of Science in Artificial Intelligence",
+        tier="reach",
+        seed_pages=[
+            OfficialSeedPage(
+                page_type="programme",
+                url="https://example.edu/programme",
+                priority=1,
+                intended_fields=["program_name"],
+            )
+        ],
+    )
+    result = ExtractedProgramInfo(
+        source_url="https://example.edu/programme",
+        page_title="Programme",
+        program_name="Master of Science in Artificial Intelligence",
+        department="Department of Computer Science",
+        duration="1.5 years",
+        tuition="HK$390,000",
+        deadline="December 1, 2026",
+        english_requirement="IELTS 6.5",
+        academic_requirement="Bachelor's degree",
+        prerequisite_keywords=["statistics", "programming"],
+        foundation_mentions={
+            "statistics": True,
+            "programming": True,
+            "mathematics": False,
+        },
+    )
+
+    formats = parse_export_formats("json,csv,markdown")
+    output_paths = export_program_result(
+        target=target,
+        result=result,
+        output_dir=tmp_path,
+        artifact_stem="example",
+        formats=formats,
+    )
+
+    assert output_paths["json"].is_file()
+    assert output_paths["csv"].is_file()
+    assert output_paths["markdown"].is_file()
+    assert "Master of Science in Artificial Intelligence" in output_paths["json"].read_text(encoding="utf-8")
+    assert "HK$390,000" in output_paths["csv"].read_text(encoding="utf-8")
+    assert "| program_code |" in output_paths["markdown"].read_text(encoding="utf-8")
+
+
+def test_cli_runs_mvp_mode_and_prints_export_paths(
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from admission_browser_agent.cli import main
+    from admission_browser_agent.models import (
+        DebugRunReport,
+        ExtractedProgramInfo,
+        OfficialSeedPage,
+        OfficialSeedRegistry,
+        OfficialTargetDefinition,
+    )
+
+    target = OfficialTargetDefinition(
+        university="HKU",
+        program_code="HKU_MSC_AI",
+        program_name="Master of Science in Artificial Intelligence",
+        tier="reach",
+        seed_pages=[
+            OfficialSeedPage(
+                page_type="programme",
+                url="https://example.edu/programme",
+                priority=1,
+                intended_fields=["program_name"],
+            )
+        ],
+    )
+    registry = OfficialSeedRegistry(targets=[target])
+
+    class StubPipeline:
+        def __init__(self, *, run_config, browser_session=None, extractor=None) -> None:
+            self.run_config = run_config
+            self.last_output_path = tmp_path / "raw.json"
+            self.last_processed_output_path = tmp_path / "processed.json"
+            self.last_debug_output_path = tmp_path / "debug.json"
+            self.last_debug_report = DebugRunReport(
+                seed_url="https://example.edu/programme",
+                seed_page_title="Programme",
+                run_mode="official_seed",
+                inspected_pages=[types.SimpleNamespace()],
+            )
+
+        def run_official_seed_target(self, selected_target) -> ExtractedProgramInfo:
+            assert selected_target.program_code == "HKU_MSC_AI"
+            return ExtractedProgramInfo(
+                source_url="https://example.edu/programme",
+                page_title="Programme",
+                program_name="Master of Science in Artificial Intelligence",
+            )
+
+    export_paths = {
+        "json": tmp_path / "mvp.json",
+        "csv": tmp_path / "mvp.csv",
+        "markdown": tmp_path / "mvp.md",
+    }
+
+    monkeypatch.setattr("admission_browser_agent.cli.AdmissionsPipeline", StubPipeline)
+    monkeypatch.setattr("admission_browser_agent.cli.load_official_seed_registry", lambda path=None: registry)
+    monkeypatch.setattr(
+        "admission_browser_agent.cli.resolve_target_definition_from_query",
+        lambda loaded_registry, query: target,
+    )
+    monkeypatch.setattr(
+        "admission_browser_agent.cli.export_program_result",
+        lambda **kwargs: export_paths,
+    )
+
+    exit_code = main(
+        [
+            "--mode",
+            "mvp",
+            "--query",
+            "HKU AI",
+            "--export-formats",
+            "json,csv,markdown",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert "run_mode: mvp" in captured.out
+    assert "query: HKU AI" in captured.out
+    assert "resolved_program_code: HKU_MSC_AI" in captured.out
+    assert f"export_json_path: {export_paths['json']}" in captured.out
+    assert f"export_csv_path: {export_paths['csv']}" in captured.out
+    assert f"export_markdown_path: {export_paths['markdown']}" in captured.out

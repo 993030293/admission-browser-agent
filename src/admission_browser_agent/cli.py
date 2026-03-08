@@ -16,9 +16,10 @@ from .evaluation import (
     write_gold_label_draft,
     write_evaluation_report,
 )
+from .exports import export_program_result, parse_export_formats
 from .models import CrawlRequest
 from .pipeline import AdmissionsPipeline
-from .targets import load_official_seed_registry
+from .targets import load_official_seed_registry, resolve_target_definition_from_query
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -33,12 +34,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--mode",
-        choices=("generic", "homepage", "official-seed"),
+        choices=("generic", "homepage", "official-seed", "mvp"),
         default="generic",
         help=(
             "Execution mode. 'generic' explores from a user-provided seed URL. "
-            "'official-seed' uses curated program pages. 'homepage' is a backward-compatible "
-            "alias for 'generic'."
+            "'official-seed' uses curated program pages. 'mvp' resolves a short program query "
+            "to curated official pages and exports structured results. "
+            "'homepage' is a backward-compatible alias for 'generic'."
         ),
     )
     parser.add_argument(
@@ -52,6 +54,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--program-code",
         help="Curated program code to run in official-seed mode.",
+    )
+    parser.add_argument(
+        "--query",
+        help="Short MVP query like 'HKU AI', 'HKUST BDT', or 'CUHK AI'.",
     )
     parser.add_argument(
         "--all-programs",
@@ -87,6 +93,15 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--export-formats",
+        default="json",
+        help="Comma-separated MVP export formats: json,csv,markdown.",
+    )
+    parser.add_argument(
+        "--export-dir",
+        help="Optional directory for MVP structured export artifacts.",
+    )
+    parser.add_argument(
         "--headful",
         action="store_true",
         help="Launch the browser with a visible window instead of headless mode.",
@@ -104,6 +119,52 @@ def main(argv: Sequence[str] | None = None) -> int:
     registry_path = Path(args.registry_path) if args.registry_path else None
     gold_dir = Path(args.gold_dir) if args.gold_dir else None
     gold_draft_dir = Path(args.gold_draft_dir) if args.gold_draft_dir else default_gold_draft_dir()
+    export_dir = Path(args.export_dir) if args.export_dir else None
+
+    if args.mode == "mvp":
+        if args.benchmark:
+            parser.exit(2, "Error: --benchmark is not supported in mvp mode.\n")
+        if args.propose_gold_draft:
+            parser.exit(2, "Error: --propose-gold-draft is not supported in mvp mode.\n")
+        if not args.query:
+            parser.exit(2, "Error: --query is required in mvp mode.\n")
+
+        try:
+            registry = load_official_seed_registry(registry_path)
+            target = resolve_target_definition_from_query(registry, query=args.query)
+            formats = parse_export_formats(args.export_formats)
+        except Exception as exc:
+            parser.exit(1, f"Error: {exc}\n")
+
+        pipeline = AdmissionsPipeline(run_config=run_config)
+        try:
+            result = pipeline.run_official_seed_target(target)
+        except Exception as exc:
+            parser.exit(1, f"Error: {exc}\n")
+
+        if pipeline.last_processed_output_path is None:
+            raise RuntimeError("MVP run completed without a processed output artifact path.")
+
+        export_base_dir = (
+            export_dir
+            if export_dir is not None
+            else _resolve_output_dir(run_config.export_data_dir) / "mvp"
+        )
+        export_paths = export_program_result(
+            target=target,
+            result=result,
+            output_dir=export_base_dir,
+            artifact_stem=pipeline.last_processed_output_path.stem,
+            formats=formats,
+        )
+        _print_mvp_summary(
+            pipeline=pipeline,
+            result=result,
+            query=args.query,
+            target=target,
+            export_paths=export_paths,
+        )
+        return 0
 
     if args.mode in {"generic", "homepage"}:
         if args.benchmark:
@@ -264,6 +325,34 @@ def _print_official_seed_summary(
     print(f"processed_output_path: {pipeline.last_processed_output_path}")
     print(f"debug_output_path: {pipeline.last_debug_output_path}")
     print(f"seed_pages_inspected: {len(pipeline.last_debug_report.inspected_pages)}")
+
+
+def _print_mvp_summary(
+    *,
+    pipeline: AdmissionsPipeline,
+    result,
+    query: str,
+    target,
+    export_paths: dict[str, Path],
+) -> None:
+    if pipeline.last_output_path is None:
+        raise RuntimeError("MVP run completed without a raw output artifact path.")
+    if pipeline.last_processed_output_path is None:
+        raise RuntimeError("MVP run completed without a processed output artifact path.")
+    if pipeline.last_debug_output_path is None:
+        raise RuntimeError("MVP run completed without a debug output artifact path.")
+
+    print("run_mode: mvp")
+    print(f"query: {query}")
+    print(f"resolved_program_code: {target.program_code}")
+    print(f"university: {target.university}")
+    print(f"source_url: {result.source_url}")
+    print(f"page_title: {result.page_title}")
+    print(f"raw_output_path: {pipeline.last_output_path}")
+    print(f"processed_output_path: {pipeline.last_processed_output_path}")
+    print(f"debug_output_path: {pipeline.last_debug_output_path}")
+    for format_name, output_path in export_paths.items():
+        print(f"export_{format_name}_path: {output_path}")
 
 
 def _print_benchmark_summary(evaluation_report, *, evaluation_output_path: Path) -> None:
