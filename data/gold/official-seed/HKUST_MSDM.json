@@ -1,0 +1,23 @@
+{
+  "program_code": "HKUST_MSDM",
+  "university": "HKUST",
+  "mode": "official_seed",
+  "label_status": "completed",
+  "notes": "Auto-accepted machine draft without manual confirmation. Replace with manually verified values when needed.",
+  "coverage_expectations": {
+    "program_name": false,
+    "deadline": true,
+    "tuition": true,
+    "english_requirement": true,
+    "academic_requirement": true,
+    "prerequisite_keywords": false
+  },
+  "fields": {
+    "program_name": "Master of Science (MSc)",
+    "deadline": "15 February 2026",
+    "tuition": "Hong Kong Government's Continuing Education Fund (CEF) is for Hong Kong residents. Eligible students can apply for reimbursement of up to HK$25,000. The MSc Program in Data-Driven Modeling has been included in the list of reimbursable courses under Continuing Education Fund with the QR number 19/000920/L6. All courses of the Program are recognized under the Qualifications Framework (QF Level 6).",
+    "english_requirement": "Applicants have to fulfill English Language requirements with one of the following proficiency attainments: First Column Text Area",
+    "academic_requirement": "Applicants seeking admission to a master's degree program should have obtained a bachelor's degree from a recognized institution, or an approved equivalent qualification.",
+    "prerequisite_keywords": []
+  }
+}

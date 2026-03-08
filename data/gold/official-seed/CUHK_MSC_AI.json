@@ -1,0 +1,23 @@
+{
+  "program_code": "CUHK_MSC_AI",
+  "university": "CUHK",
+  "mode": "official_seed",
+  "label_status": "completed",
+  "notes": "Auto-accepted machine draft without manual confirmation. Replace with manually verified values when needed.",
+  "coverage_expectations": {
+    "program_name": true,
+    "deadline": false,
+    "tuition": true,
+    "english_requirement": true,
+    "academic_requirement": true,
+    "prerequisite_keywords": false
+  },
+  "fields": {
+    "program_name": "Master of Science in Artificial Intelligence",
+    "deadline": "Submit an application for the Scheme, together with a copy of the HKID card and supporting documents as requested, to the respective Programme Office by the deadline set by individual Programme.",
+    "tuition": "Duration and Amount of the Fellowship FTSS awardees are required to pay a minimum tuition fee being the prevailing rate of the UGC-funded full-time degree programmes (i.e. HK$44,500 (for the 2025/26 intake) and HK$47,000 (for the 2026/27 intake), and the differences will be subsidised by the scholarships subject to a cap of HK$100,000 for each student for the whole taught postgraduate programme, regardless of the actual study period and mode of study. The scholarship will be used for the settlement of the tuition fee only.",
+    "english_requirement": "Requirements Applicants are required to fulfil the General Admissions Requirements, English Language Requirements for Admission and Programme-Specific Admissions Requirements (if any).",
+    "academic_requirement": "Applicants with degrees awarded by overseas universities by distance learning or by completing a curriculum of short duration may be required to provide assessment reports from the Hong Kong Council for Accreditation of Academic and Vocational Qualifications (HKCAAVQ) on the level of qualification obtained.",
+    "prerequisite_keywords": []
+  }
+}

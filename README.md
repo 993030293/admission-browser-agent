@@ -51,8 +51,11 @@ admission-browser-agent/
 |- data/
 |  |- gold/
 |  |  \- official-seed/
+|  |     |- CUHK_MSC_AI.json
 |  |     |- HKU_MSC_AI.json
 |  |     |- HKU_MDASC.json
+|  |     |- HKUST_MSC_BDT.json
+|  |     |- HKUST_MSDM.json
 |  |     \- template.json
 |  \- targets/
 |     \- official_seed_pages.json
@@ -141,14 +144,16 @@ $env:PYTHONPATH="src"
 python -m admission_browser_agent.cli --mode official-seed --program-code "HKU_MSC_AI" --benchmark
 ```
 
-To prepare the next benchmark target, manually fill `data/gold/official-seed/HKU_MDASC.json` and then run:
+To prepare additional benchmark targets, manually fill the corresponding gold file and run:
 
 ```powershell
 $env:PYTHONPATH="src"
 python -m admission_browser_agent.cli --mode official-seed --program-code "HKU_MDASC" --benchmark
+python -m admission_browser_agent.cli --mode official-seed --program-code "CUHK_MSC_AI" --benchmark
+python -m admission_browser_agent.cli --mode official-seed --program-code "HKUST_MSDM" --benchmark
 ```
 
-Third curated target (`HKUST_MSC_BDT`) is available at `data/gold/official-seed/HKUST_MSC_BDT.json`. Run:
+`HKUST_MSC_BDT` remains available at `data/gold/official-seed/HKUST_MSC_BDT.json`. Run:
 
 ```powershell
 $env:PYTHONPATH="src"
