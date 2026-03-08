@@ -65,3 +65,4 @@ This directory stores manually maintained benchmark labels for curated official-
 - `label_status` should make it obvious whether the file is a finished benchmark label or only an example/template.
 - Do not auto-generate these files from the web. Edit them manually.
 - For `HKU_MDASC`, start from `data/gold/official-seed/HKU_MDASC.json`, review the curated official seed pages, then run the benchmark command after filling the fields.
+- For `HKUST_MSC_BDT`, start from `data/gold/official-seed/HKUST_MSC_BDT.json`, curate fields manually, then run the official-seed benchmark command.

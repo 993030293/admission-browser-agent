@@ -1,0 +1,23 @@
+{
+  "program_code": "HKUST_MSC_BDT",
+  "university": "HKUST",
+  "mode": "official_seed",
+  "label_status": "manual_template_pending",
+  "notes": "Manual curation template for HKUST_MSC_BDT. Fill fields only after reviewing official seed pages or checked raw captures.",
+  "coverage_expectations": {
+    "program_name": true,
+    "deadline": false,
+    "tuition": true,
+    "english_requirement": true,
+    "academic_requirement": true,
+    "prerequisite_keywords": false
+  },
+  "fields": {
+    "program_name": null,
+    "deadline": null,
+    "tuition": null,
+    "english_requirement": null,
+    "academic_requirement": null,
+    "prerequisite_keywords": []
+  }
+}

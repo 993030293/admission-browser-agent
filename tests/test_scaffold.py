@@ -3472,6 +3472,30 @@ def test_gold_label_loader_reads_completed_hku_mdasc_label() -> None:
     }
 
 
+def test_gold_label_loader_reads_hkust_msc_bdt_template() -> None:
+    from admission_browser_agent.evaluation import load_gold_label
+
+    gold_label = load_gold_label(program_code="HKUST_MSC_BDT")
+
+    assert gold_label.program_code == "HKUST_MSC_BDT"
+    assert gold_label.university == "HKUST"
+    assert gold_label.label_status == "manual_template_pending"
+    assert gold_label.fields["program_name"] is None
+    assert gold_label.fields["deadline"] is None
+    assert gold_label.fields["tuition"] is None
+    assert gold_label.fields["english_requirement"] is None
+    assert gold_label.fields["academic_requirement"] is None
+    assert gold_label.fields["prerequisite_keywords"] == []
+    assert gold_label.coverage_expectations == {
+        "program_name": True,
+        "deadline": False,
+        "tuition": True,
+        "english_requirement": True,
+        "academic_requirement": True,
+        "prerequisite_keywords": False,
+    }
+
+
 def _write_official_seed_gold_label(
     tmp_path: Path,
     *,

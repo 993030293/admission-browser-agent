@@ -148,6 +148,13 @@ $env:PYTHONPATH="src"
 python -m admission_browser_agent.cli --mode official-seed --program-code "HKU_MDASC" --benchmark
 ```
 
+Third curated target (`HKUST_MSC_BDT`) is prepared with a manual template at `data/gold/official-seed/HKUST_MSC_BDT.json`. After curation, run:
+
+```powershell
+$env:PYTHONPATH="src"
+python -m admission_browser_agent.cli --mode official-seed --program-code "HKUST_MSC_BDT" --benchmark
+```
+
 Benchmark every curated program that has a matching gold label:
 
 ```powershell
