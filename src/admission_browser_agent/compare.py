@@ -118,6 +118,47 @@ def write_comparison_report(*, report_markdown: str, output_dir: Path) -> Path:
     return output_path
 
 
+def answer_simple_question(rows: list[ComparisonRow], question: str) -> str:
+    """Return a deterministic rule-based answer from comparison rows."""
+
+    normalized = question.strip().lower()
+    if not normalized:
+        return "Question is empty."
+
+    if any(token in normalized for token in ("statistics", "统计")):
+        matches = [row.program_code for row in rows if row.mentions_statistics_foundation]
+        return (
+            "Programs mentioning statistics foundation: "
+            + (", ".join(matches) if matches else "none")
+        )
+
+    if any(token in normalized for token in ("programming", "cs", "计算机", "编程")):
+        matches = [row.program_code for row in rows if row.mentions_programming_foundation]
+        return (
+            "Programs mentioning programming/CS foundation: "
+            + (", ".join(matches) if matches else "none")
+        )
+
+    if any(token in normalized for token in ("math", "mathematics", "数学")):
+        matches = [row.program_code for row in rows if row.mentions_math_foundation]
+        return (
+            "Programs mentioning mathematics foundation: "
+            + (", ".join(matches) if matches else "none")
+        )
+
+    if any(
+        token in normalized
+        for token in ("earliest", "deadline", "截止", "最早")
+    ):
+        earliest = _earliest_deadline(rows)
+        return f"Earliest parsed deadline: {earliest if earliest is not None else 'not available'}"
+
+    return (
+        "Supported questions currently include: statistics foundation, programming/CS foundation, "
+        "mathematics foundation, and earliest deadline."
+    )
+
+
 def _to_comparison_row(payload: dict[str, object]) -> ComparisonRow:
     return ComparisonRow(
         university=str(payload.get("university", "")),

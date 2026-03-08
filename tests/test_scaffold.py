@@ -204,6 +204,7 @@ def test_cli_parser_includes_required_arguments() -> None:
     assert "mvp" in help_text
     assert "compare" in help_text
     assert "--compare-export-dir" in help_text
+    assert "--ask" in help_text
 
 
 def test_browser_session_fetches_page_with_fake_playwright(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -4638,3 +4639,40 @@ def test_cli_compare_mode_prints_report_path(
     assert exit_code == 0
     assert "run_mode: compare" in captured.out
     assert "compare_report_path:" in captured.out
+
+
+def test_compare_answer_simple_question_for_statistics_and_earliest_deadline() -> None:
+    from admission_browser_agent.compare import ComparisonRow, answer_simple_question
+
+    rows = [
+        ComparisonRow(
+            university="HKU",
+            program_code="HKU_MSC_AI",
+            program_name="Master of Science in Artificial Intelligence",
+            deadline="December 1, 2025",
+            tuition="HK$390,000",
+            language_requirement="",
+            background_requirement="",
+            mentions_statistics_foundation=True,
+            mentions_programming_foundation=True,
+            mentions_math_foundation=True,
+        ),
+        ComparisonRow(
+            university="CUHK",
+            program_code="CUHK_MSC_AI",
+            program_name="Master of Science in Artificial Intelligence",
+            deadline="6 OCT 2025",
+            tuition="HKD 380,000",
+            language_requirement="",
+            background_requirement="",
+            mentions_statistics_foundation=False,
+            mentions_programming_foundation=False,
+            mentions_math_foundation=False,
+        ),
+    ]
+
+    stats_answer = answer_simple_question(rows, "哪些项目明确要求统计基础？")
+    earliest_answer = answer_simple_question(rows, "哪个项目截止最早？")
+
+    assert "HKU_MSC_AI" in stats_answer
+    assert "2025-10-06" in earliest_answer

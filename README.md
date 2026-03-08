@@ -152,6 +152,13 @@ python -m admission_browser_agent.cli --mode compare
 
 This scans `data/exports/mvp/`, keeps the latest JSON export per `program_code`, and writes a markdown comparison report under `data/exports/reports/` with a field table plus derived signals (earliest parsed deadline, foundation mentions).
 
+You can also ask a simple rule-based question against the same latest exports:
+
+```powershell
+$env:PYTHONPATH="src"
+python -m admission_browser_agent.cli --mode compare --ask "哪些项目明确要求统计基础？"
+```
+
 The legacy `--mode homepage` spelling is still accepted as a backward-compatible alias for `--mode generic`.
 
 ## Benchmarking

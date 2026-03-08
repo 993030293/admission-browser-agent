@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Sequence
 
 from .compare import (
+    answer_simple_question,
     build_comparison_markdown,
     load_latest_mvp_exports,
     write_comparison_report,
@@ -116,6 +117,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional directory for compare-mode markdown reports.",
     )
     parser.add_argument(
+        "--ask",
+        help="Optional simple question for compare mode (for example: 哪些项目明确要求统计基础？).",
+    )
+    parser.add_argument(
         "--headful",
         action="store_true",
         help="Launch the browser with a visible window instead of headless mode.",
@@ -166,6 +171,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("run_mode: compare")
         print(f"compare_input_dir: {export_base_dir}")
         print(f"compare_report_path: {report_path}")
+        if args.ask:
+            answer = answer_simple_question(rows, args.ask)
+            print(f"question: {args.ask}")
+            print(f"answer: {answer}")
         return 0
 
     if args.mode == "mvp":
