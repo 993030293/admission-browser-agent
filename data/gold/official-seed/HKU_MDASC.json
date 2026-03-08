@@ -1,0 +1,28 @@
+{
+  "program_code": "HKU_MDASC",
+  "university": "HKU",
+  "mode": "official_seed",
+  "label_status": "completed",
+  "notes": "Manual curation template for the next benchmark target. Fill these fields only after reviewing the official HKU_MDASC seed pages or the checked-in official-seed raw captures.",
+  "coverage_expectations": {
+    "program_name": true,
+    "deadline": true,
+    "tuition": true,
+    "english_requirement": true,
+    "academic_requirement": true,
+    "prerequisite_keywords": true
+  },
+  "fields": {
+    "program_name": "Master of Data Science",
+    "deadline": "December 1, 2025",
+    "tuition": "HK$339,840",
+    "english_requirement": "Applicants must satisfy the HKU higher degree English language requirement; refer to the University admissions requirements page for details.",
+    "academic_requirement": "Applicants should have completed at least one course in calculus and algebra, one course in computer programming, and one course in introductory statistics or related areas.",
+    "prerequisite_keywords": [
+      "calculus",
+      "algebra",
+      "programming",
+      "statistics"
+    ]
+  }
+}

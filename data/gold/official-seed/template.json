@@ -1,0 +1,23 @@
+{
+  "program_code": "REPLACE_WITH_PROGRAM_CODE",
+  "university": "REPLACE_WITH_UNIVERSITY",
+  "mode": "official_seed",
+  "label_status": "manual_template_pending",
+  "notes": "Manually edit this template. Do not auto-generate gold labels from the live web. Replace nulls only after manual verification.",
+  "coverage_expectations": {
+    "program_name": true,
+    "deadline": true,
+    "tuition": true,
+    "english_requirement": true,
+    "academic_requirement": true,
+    "prerequisite_keywords": true
+  },
+  "fields": {
+    "program_name": null,
+    "deadline": null,
+    "tuition": null,
+    "english_requirement": null,
+    "academic_requirement": null,
+    "prerequisite_keywords": []
+  }
+}

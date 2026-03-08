@@ -1,0 +1,29 @@
+{
+  "program_code": "HKU_MSC_AI",
+  "university": "HKU",
+  "mode": "official_seed",
+  "label_status": "manually_curated_example",
+  "notes": "Manual example gold label curated from the checked-in official-seed raw captures for benchmarking workflow validation.",
+  "coverage_expectations": {
+    "program_name": true,
+    "deadline": true,
+    "tuition": true,
+    "english_requirement": false,
+    "academic_requirement": true,
+    "prerequisite_keywords": true
+  },
+  "fields": {
+    "program_name": "Master of Science in Artificial Intelligence",
+    "deadline": "December 1, 2025",
+    "tuition": "The tuition fee is HK$390,000* for students admitted in September 2026. The fee shall normally be payable in three instalments over 1.5 years for full-time study.",
+    "english_requirement": null,
+    "academic_requirement": "Applicants shall hold a Bachelor's degree or an equivalent qualification.",
+    "prerequisite_keywords": [
+      "statistics",
+      "probability",
+      "linear algebra",
+      "calculus",
+      "programming"
+    ]
+  }
+}

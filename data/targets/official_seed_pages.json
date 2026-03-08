@@ -1,0 +1,226 @@
+{
+  "targets": [
+    {
+      "university": "HKU",
+      "program_code": "HKU_MSC_AI",
+      "program_name": "Master of Science in Artificial Intelligence",
+      "tier": "reach",
+      "seed_pages": [
+        {
+          "page_type": "programme",
+          "url": "https://www.mscai.hku.hk/programme/",
+          "priority": 1,
+          "intended_fields": ["program_name", "tuition", "duration", "medium_of_instruction"]
+        },
+        {
+          "page_type": "admissions",
+          "url": "https://www.mscai.hku.hk/admissions/",
+          "priority": 1,
+          "intended_fields": ["deadline", "academic_requirement", "prerequisite_keywords"]
+        },
+        {
+          "page_type": "faq",
+          "url": "https://www.mscai.hku.hk/frequently-asked-questions/",
+          "priority": 2,
+          "intended_fields": ["english_requirement", "supporting_documents"]
+        }
+      ]
+    },
+    {
+      "university": "HKU",
+      "program_code": "HKU_MDASC",
+      "program_name": "Master of Data Science",
+      "tier": "target",
+      "seed_pages": [
+        {
+          "page_type": "overview",
+          "url": "https://mdasc.cds.hku.hk/",
+          "priority": 1,
+          "intended_fields": ["program_name", "tuition", "duration", "deadline"]
+        },
+        {
+          "page_type": "admissions",
+          "url": "https://mdasc.cds.hku.hk/admissions/",
+          "priority": 1,
+          "intended_fields": ["academic_requirement", "prerequisite_keywords"]
+        },
+        {
+          "page_type": "english_faq",
+          "url": "https://mdasc.cds.hku.hk/faq/are-there-any-english-language-requirements-for-admission-do-i-need-to-take-any-english-tests-if-so-what-are-the-minimum-scores-required/",
+          "priority": 2,
+          "intended_fields": ["english_requirement"]
+        }
+      ]
+    },
+    {
+      "university": "HKUST",
+      "program_code": "HKUST_MSC_AI",
+      "program_name": "MSc in Artificial Intelligence",
+      "tier": "reach",
+      "seed_pages": [
+        {
+          "page_type": "programme",
+          "url": "https://seng.hkust.edu.hk/academics/taught-postgraduate/msc-ai",
+          "priority": 1,
+          "intended_fields": ["program_name", "tuition", "academic_requirement", "rolling_admission_note"]
+        },
+        {
+          "page_type": "graduate_school_requirements",
+          "url": "https://fytgs.hkust.edu.hk/admissions/Admission-to-Hong-Kong-Campus/submitting-an-application/admission-requirements",
+          "priority": 1,
+          "intended_fields": ["english_requirement"]
+        }
+      ]
+    },
+    {
+      "university": "HKUST",
+      "program_code": "HKUST_MSC_BDT",
+      "program_name": "MSc in Big Data Technology",
+      "tier": "target",
+      "seed_pages": [
+        {
+          "page_type": "programme",
+          "url": "https://seng.hkust.edu.hk/academics/taught-postgraduate/msc-bdt",
+          "priority": 1,
+          "intended_fields": ["program_name", "tuition", "academic_requirement", "rolling_admission_note"]
+        },
+        {
+          "page_type": "graduate_school_requirements",
+          "url": "https://fytgs.hkust.edu.hk/admissions/Admission-to-Hong-Kong-Campus/submitting-an-application/admission-requirements",
+          "priority": 1,
+          "intended_fields": ["english_requirement"]
+        }
+      ]
+    },
+    {
+      "university": "HKUST",
+      "program_code": "HKUST_MSDM",
+      "program_name": "MSc in Data-Driven Modeling",
+      "tier": "safer",
+      "seed_pages": [
+        {
+          "page_type": "requirements",
+          "url": "https://msdm.hkust.edu.hk/requirements",
+          "priority": 1,
+          "intended_fields": ["academic_requirement", "english_requirement"]
+        },
+        {
+          "page_type": "admission_procedure",
+          "url": "https://msdm.hkust.edu.hk/admission-procedure",
+          "priority": 1,
+          "intended_fields": ["deadline", "application_fee"]
+        },
+        {
+          "page_type": "programme_fee",
+          "url": "https://msdm.hkust.edu.hk/program-fee-entrance-scholarships",
+          "priority": 1,
+          "intended_fields": ["tuition"]
+        }
+      ]
+    },
+    {
+      "university": "CUHK",
+      "program_code": "CUHK_MSC_AI",
+      "program_name": "MSc in Artificial Intelligence",
+      "tier": "target",
+      "seed_pages": [
+        {
+          "page_type": "programme_information",
+          "url": "https://mscai.erg.cuhk.edu.hk/programme-information",
+          "priority": 1,
+          "intended_fields": ["program_name", "tuition", "duration"]
+        },
+        {
+          "page_type": "admission",
+          "url": "https://mscai.erg.cuhk.edu.hk/admission",
+          "priority": 1,
+          "intended_fields": ["academic_requirement"]
+        },
+        {
+          "page_type": "graduate_school_requirements",
+          "url": "https://www.gs.cuhk.edu.hk/admissions/admissions/requirements",
+          "priority": 1,
+          "intended_fields": ["english_requirement"]
+        }
+      ]
+    },
+    {
+      "university": "CUHK",
+      "program_code": "CUHK_MSC_AIS",
+      "program_name": "MSc in Artificial Intelligence for Science",
+      "tier": "target",
+      "seed_pages": [
+        {
+          "page_type": "science_programme_list",
+          "url": "https://www.gs.cuhk.edu.hk/admissions/programme/science",
+          "priority": 1,
+          "intended_fields": ["program_name", "tuition", "duration", "admission_requirement_entry"]
+        },
+        {
+          "page_type": "application_deadlines",
+          "url": "https://www.gs.cuhk.edu.hk/admissions/admissions/application-deadline",
+          "priority": 1,
+          "intended_fields": ["deadline"]
+        },
+        {
+          "page_type": "graduate_school_requirements",
+          "url": "https://www.gs.cuhk.edu.hk/admissions/admissions/requirements",
+          "priority": 1,
+          "intended_fields": ["english_requirement"]
+        }
+      ]
+    },
+    {
+      "university": "CUHK",
+      "program_code": "CUHK_ASDS",
+      "program_name": "MSc in Advanced Studies in Statistics and Data Science",
+      "tier": "safer",
+      "seed_pages": [
+        {
+          "page_type": "science_programme_list",
+          "url": "https://www.gs.cuhk.edu.hk/admissions/programme/science",
+          "priority": 1,
+          "intended_fields": ["program_name", "tuition", "duration", "academic_requirement"]
+        },
+        {
+          "page_type": "application_deadlines",
+          "url": "https://www.gs.cuhk.edu.hk/admissions/admissions/application-deadline",
+          "priority": 1,
+          "intended_fields": ["deadline"]
+        },
+        {
+          "page_type": "graduate_school_requirements",
+          "url": "https://www.gs.cuhk.edu.hk/admissions/admissions/requirements",
+          "priority": 1,
+          "intended_fields": ["english_requirement"]
+        }
+      ]
+    },
+    {
+      "university": "CUHK",
+      "program_code": "CUHK_DSBS",
+      "program_name": "MSc in Data Science and Business Statistics",
+      "tier": "safer",
+      "seed_pages": [
+        {
+          "page_type": "science_programme_list",
+          "url": "https://www.gs.cuhk.edu.hk/admissions/programme/science",
+          "priority": 1,
+          "intended_fields": ["program_name", "tuition", "duration"]
+        },
+        {
+          "page_type": "application_deadlines",
+          "url": "https://www.gs.cuhk.edu.hk/admissions/admissions/application-deadline",
+          "priority": 1,
+          "intended_fields": ["deadline"]
+        },
+        {
+          "page_type": "graduate_school_requirements",
+          "url": "https://www.gs.cuhk.edu.hk/admissions/admissions/requirements",
+          "priority": 1,
+          "intended_fields": ["english_requirement"]
+        }
+      ]
+    }
+  ]
+}
