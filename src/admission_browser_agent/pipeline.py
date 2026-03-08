@@ -394,6 +394,11 @@ class AdmissionsPipeline:
                     follow_up_update_reason = "supplement_pages_did_not_fill_missing_fields"
 
         aggregated_result = aggregation_outcome.aggregated_result
+        self._align_official_seed_display_page(
+            aggregated_result=aggregated_result,
+            ordered_seed_pages=ordered_seed_pages,
+            inspected_pages=inspected_pages,
+        )
         self.last_extracted_program = aggregated_result
         self.last_processed_output_path = self._write_processed_result(
             aggregated_result,
@@ -845,6 +850,40 @@ class AdmissionsPipeline:
         if not aggregated_result.english_requirement:
             missing_fields.append("english_requirement")
         return missing_fields
+
+    def _align_official_seed_display_page(
+        self,
+        *,
+        aggregated_result: ExtractedProgramInfo,
+        ordered_seed_pages: list,
+        inspected_pages: list[PageInspectionDebug],
+    ) -> None:
+        preferred_source_url: str | None = None
+        program_name_sources = aggregated_result.field_sources.get("program_name", [])
+        if program_name_sources:
+            preferred_source_url = program_name_sources[0]
+        else:
+            for seed_page in ordered_seed_pages:
+                page_type = seed_page.page_type.lower()
+                if page_type in {"programme", "program", "programme_information", "program_information", "overview"}:
+                    preferred_source_url = seed_page.url
+                    break
+            if preferred_source_url is None and ordered_seed_pages:
+                preferred_source_url = ordered_seed_pages[0].url
+
+        if preferred_source_url is None:
+            return
+
+        preferred_page = next(
+            (page for page in inspected_pages if page.source_url == preferred_source_url),
+            None,
+        )
+        if preferred_page is None:
+            return
+
+        aggregated_result.source_url = preferred_page.source_url
+        if preferred_page.page_title:
+            aggregated_result.page_title = preferred_page.page_title
 
     def _missing_official_seed_supplement_fields(
         self,

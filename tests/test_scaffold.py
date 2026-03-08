@@ -2488,6 +2488,8 @@ def test_pipeline_runs_official_seed_target_and_aggregates_fields(tmp_path: Path
 
     result = pipeline.run_official_seed_target(target)
 
+    assert result.source_url == "https://example.edu/programme"
+    assert result.page_title == "Programme"
     assert result.program_name == "Master of Science in Computer Science"
     assert result.tuition == "HK$320,000"
     assert result.deadline == "December 1, 2026"
